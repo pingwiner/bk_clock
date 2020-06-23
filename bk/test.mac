@@ -1,0 +1,152 @@
+PORT = 177714; 		Extension port address
+BUFFER = 1600
+
+begin:
+	mov #1330, @#177664	; set full screen mode
+	call testrcv
+stop:
+	br stop
+
+
+testsend:
+	mov #BUFFER, r3
+	mov #4, r4
+	call sendblock
+	call sleep
+	br testsend
+
+testrcv:
+	mov #BUFFER, r3	
+	call recvString
+
+	emt 62
+	mov #BUFFER, r0
+	emt 64
+	br testrcv
+
+sleep:
+	mov #30000, r1
+slp1:	
+	dec r1
+	cmp #0, r1
+	bne slp1
+	rts pc
+
+;print string
+; Uses r0, r3
+; r3 - buffer address
+printString:
+	movb (r3)+, r0
+	bit #0xff, r0
+	beq printString_done
+	emt 63
+	br printString
+printString_done:
+	rts pc
+
+;receive string
+; Uses r0, r3
+; r3 - buffer address
+sendString:
+	mov (r3), r0
+	call sendbyte	
+	bit #0xff, (r3)	
+	beq ss_done
+	inc r3
+	br sendString
+ss_done:	
+	rts pc
+
+;receive string
+; Uses r0, r3
+; r3 - buffer address
+recvString:
+	call recvbyte	
+	movb r0, (r3)+	
+	bit #0xff, r0	
+	bne recvString
+	rts pc
+
+;receive block
+; Uses r0, r3, r4
+; r3 - buffer address, r4 - buffer size
+sendblock:
+	mov (r3)+, r0
+	call sendbyte	
+	dec r4
+	bne sendblock
+	rts pc
+
+;receive block
+; Uses r0, r3, r4
+; r3 - buffer address, r4 - buffer size
+recvblock:
+	call recvbyte	
+	movb r0, (r3)+
+	dec r4
+	bne recvblock
+	rts pc
+
+; uses registers R0, R1, R2
+; arg in R0
+sendbyte:
+	mov #PORT, r2
+	mov r0, r1
+	bic #0xfff0, r1
+	bis #0x10, r1
+	mov r1, (r2)
+
+	mov r0, r1
+	asr r1
+	asr r1    
+	asr r1
+	asr r1
+	bic #0xfff0, r1
+	mov r1, (r2)
+	rts pc
+
+; uses registers R0, R1, R2
+; result in R0
+recvbyte:
+	mov #PORT, r2
+rcv0:
+	bit #0x10, (r2)
+	beq rcv0
+	mov (r2), r0	
+	bic #0xfff0, r0
+rcv1:	
+	bit #0x10, (r2)
+	bne rcv1
+	mov (r2), r1
+	asl r1
+	asl r1    
+	asl r1
+	asl r1
+	bic #0xff0f, r1
+	bis r1, r0
+	com r0
+	bic #0xff00, r0
+	rts pc
+
+printbin:
+	mov r0, r2
+	mov #0x8, r1
+pp0:
+	bit #0x80, r0
+	beq print0
+	mov #0x31, r0	
+	br pp1
+print0:		
+	mov #0x30, r0	
+pp1:
+	emt 63
+	asl r2
+	mov r2, r0	
+	dec r1
+	bne pp0
+	mov #0x20, r0
+	emt 63
+	rts pc
+
+make_bin
+make_wav 
