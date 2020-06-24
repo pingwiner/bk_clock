@@ -9,9 +9,8 @@ stop:
 
 
 testsend:
-	mov #BUFFER, r3
-	mov #4, r4
-	call sendblock
+	mov #hello, r3
+	call sendString
 	call sleep
 	br testsend
 
@@ -48,7 +47,7 @@ printString_done:
 ; Uses r0, r3
 ; r3 - buffer address
 sendString:
-	mov (r3), r0
+	movb (r3), r0
 	call sendbyte	
 	bit #0xff, (r3)	
 	beq ss_done
@@ -147,6 +146,9 @@ pp1:
 	mov #0x20, r0
 	emt 63
 	rts pc
+
+hello:
+.ASCIZ "Hello from bk!"
 
 make_bin
 make_wav 
