@@ -11,10 +11,11 @@ testClock:
 	mov #timeString, r0	
 	mov #buffer, r1
 	call getDateTimeAsString
+
 	emt 62
 	mov #buffer, r0
 	emt 64 	
-	mov #30000, r0 
+	mov #240000, r0 
 wait:	
 	dec r0
 	bne wait

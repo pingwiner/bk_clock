@@ -1,5 +1,8 @@
 .extern printBin
 
+;Print binary number
+; r0 - argument
+; Uses r0, r1, r2
 printBin:
 	mov r0, r2
 	mov #0x8, r1

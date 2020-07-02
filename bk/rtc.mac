@@ -8,12 +8,14 @@ CMD_GET_TIME = 3
 CMD_GET_DATE = 4
 CMD_GET_DATE_TIME_AS_STRING = 5
 
-;uses r0, r1, r2, r3, r4
+
+;Get current date
 ; return 
 ; r0 - day
 ; r1 - month
 ; r2 - year
 ; r3 - day of week
+; Uses r0, r1, r2, r3, r4
 getDate:
 	mov #CMD_GET_DATE, r0
 	call sendByte
@@ -28,11 +30,12 @@ getDate:
 	movb (r4)+, r3
 	rts pc
 
-;uses r0, r1, r2, r3, r4
+;Get current time
 ; return 
 ; r0 - hours
 ; r1 - minutes
 ; r2 - seconds
+; Uses r0, r1, r2, r3, r4
 getTime:
 	mov #CMD_GET_TIME, r0
 	call sendByte
@@ -46,6 +49,7 @@ getTime:
 	movb (r3)+, r2
 	rts pc
 
+;Get current date and time using format string
 ; r0 - format string
 ; r1 - return buffer
 ; Uses r0, r1, r2, r3, r4
@@ -60,7 +64,7 @@ getDateTimeAsString:
 	call delay
 	rts pc
 
-;set time
+;Set time
 ; r0 - hours
 ; r1 - minutes
 ; r2 - seconds
@@ -77,7 +81,7 @@ setTime:
 	call delay	
 	rts pc
 
-;set date
+;Set date
 ; r0 - day
 ; r1 - month
 ; r2 - year

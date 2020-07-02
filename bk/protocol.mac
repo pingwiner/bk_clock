@@ -3,17 +3,20 @@
 
 PORT = 177714; 		Extension port address
 
-; Uses r0, r1, r2, r3, r4
+
+;Send command with data buffer
 ; r0 - command code
 ; r3 - buffer address
 ; r4 - buffer size
+; Uses r0, r1, r2, r3, r4
 sendCommand:
 	call sendByte
 	call sendBlock
 	call recvByte
 	rts pc
 
-; uses r1
+;Time delay between requests
+; Uses r1
 delay:
 	mov #500, r1 
 1:	
@@ -21,9 +24,9 @@ delay:
 	bne 1
 	rts pc
 
-;receive string
+;Send string
+; r3 - string address
 ; Uses r0, r1, r2, r3
-; r3 - buffer address
 sendString:
 	movb (r3), r0
 	call sendByte		
@@ -34,9 +37,9 @@ sendString:
 1:	
 	rts pc
 
-;receive string
-; Uses r0, r1, r2, r3
+;Receive string
 ; r3 - buffer address
+; Uses r0, r1, r2, r3
 recvString:
 	call recvByte	
 	movb r0, (r3)+	
@@ -44,9 +47,9 @@ recvString:
 	bne recvString
 	rts pc
 
-;receive block
-; Uses r0, r1, r2, r3, r4
+;Send block
 ; r3 - buffer address, r4 - buffer size
+; Uses r0, r1, r2, r3, r4
 sendBlock:
 	movb (r3)+, r0
 	call sendByte	
@@ -54,9 +57,9 @@ sendBlock:
 	bne sendBlock
 	rts pc
 
-;receive block
-; Uses r0, r1, r2, r3, r4
+;Receive block
 ; r3 - buffer address, r4 - buffer size
+; Uses r0, r1, r2, r3, r4
 recvBlock:
 	call recvByte	
 	movb r0, (r3)+
@@ -64,8 +67,9 @@ recvBlock:
 	bne recvBlock
 	rts pc
 
-; uses registers R0, R1, R2
-; arg in R0
+;Send byte
+; r0 - byte to send
+; Uses registers r0, r1, r2
 sendByte:
 	mov #PORT, r2
 	mov r0, r1
@@ -82,8 +86,10 @@ sendByte:
 	mov r1, (r2)
 	rts pc
 
-; uses registers R0, R1, R2
-; result in R0
+;Receive byte
+;return
+; r0 - received byte
+; Uses registers r0, r1, r2
 recvByte:
 	mov #PORT, r2
 1:
