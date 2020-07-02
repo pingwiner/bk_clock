@@ -1,0 +1,21 @@
+.extern printBin
+
+printBin:
+	mov r0, r2
+	mov #0x8, r1
+1:
+	bit #0x80, r0
+	beq 2
+	mov #0x31, r0	
+	br 3
+2:		
+	mov #0x30, r0	
+3:
+	emt 63
+	asl r2
+	mov r2, r0	
+	dec r1
+	bne 1
+	mov #0x20, r0
+	emt 63
+	rts pc

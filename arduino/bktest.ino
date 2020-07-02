@@ -13,6 +13,13 @@ const byte interruptPin = 3;
 #define ISR_MODE_RECEIVE_BLOCK  0
 #define ISR_MODE_RECEIVE_STRING 1
 
+#define CMD_SET_TIME  1
+#define CMD_SET_DATE  2
+#define CMD_GET_TIME  3
+#define CMD_GET_DATE  4
+#define CMD_GET_DATE_TIME_AS_STRING 5
+
+
 typedef void (*CallbackFunc)(); 
 
 typedef struct {
@@ -27,7 +34,9 @@ typedef struct {
 } IsrHandlerStruct;
 
 volatile IsrHandlerStruct isrHandlerStruct;
-char recvBuf[64];
+byte cmd;
+volatile bool receiveComplete;
+byte recvBuf[64];
 
 void isrInit() {
   isrHandlerStruct.dataState = ISR_NIBBLE1;
@@ -40,26 +49,10 @@ void isrInit() {
   isrHandlerStruct.mode = ISR_MODE_RECEIVE_BLOCK;
 }
 
-void receiveBlock(byte* buffer, int size, CallbackFunc callback) {
-   isrInit();
-   isrHandlerStruct.pBuffer = buffer;
-   isrHandlerStruct.bufferSize = size;   
-   isrHandlerStruct.callback = callback;
-   isrHandlerStruct.isrState = ISR_STATE_BUSY;
-}
-
-void receiveString(char* buffer, int size, CallbackFunc callback) {
-   isrInit();
-   isrHandlerStruct.pBuffer = (byte*) buffer;
-   isrHandlerStruct.bufferSize = size;   
-   isrHandlerStruct.callback = callback;
-   isrHandlerStruct.mode = ISR_MODE_RECEIVE_STRING;
-   isrHandlerStruct.isrState = ISR_STATE_BUSY;  
-}
 
 void onReceive() {
-  Serial.print("data received: ");
-  Serial.println((char*) isrHandlerStruct.pBuffer);
+  receiveComplete = true;
+  //Serial.println((char*) isrHandlerStruct.pBuffer);
 }
 
 iarduino_RTC time(RTC_DS1302, 8, 10, 9);
@@ -78,16 +71,82 @@ void setup() {
   pinMode(interruptPin, INPUT_PULLUP);
   isrInit();
   attachInterrupt(digitalPinToInterrupt(interruptPin), isr, CHANGE);
-  //Serial.println("waiting for data ...");
-  
   time.begin();
-  //Serial.println(time.gettime("d-m-Y, H:i:s, D"));
-  //receiveString(recvBuf, sizeof(recvBuf), onReceive);
 }
 
-void loop() {  
-  delay(1000);
-  sendString(time.gettime("H:i:s"));    
+void onSetTime() {  
+  receiveComplete = false;
+  receiveBlock(recvBuf, 3, onReceive);
+  while (!receiveComplete); 
+  time.settime(recvBuf[2], recvBuf[1], recvBuf[0]);
+  sendByte(0);  
+}
+
+void onGetDateTimeAsString() {  
+  memset(recvBuf, 0, sizeof(recvBuf));
+  receiveComplete = false;
+  receiveString(recvBuf, sizeof(recvBuf) - 1, onReceive);  
+  while (!receiveComplete); 
+  sendString(time.gettime((char*)recvBuf));
+}
+
+void onSetDate() {
+  receiveComplete = false;
+  receiveBlock(recvBuf, 4, onReceive);
+  while (!receiveComplete); 
+  time.gettime();
+  time.settime(time.seconds, time.minutes, time.hours, recvBuf[0], recvBuf[1], recvBuf[2], recvBuf[3]);
+  sendByte(0);    
+}
+
+void onGetTime() {
+  time.gettime();
+  recvBuf[0] = time.hours;
+  recvBuf[1] = time.minutes;
+  recvBuf[2] = time.seconds;  
+  sendBlock(recvBuf, 3);  
+}
+
+void onGetDate() {
+  time.gettime();
+  recvBuf[0] = time.day;
+  recvBuf[1] = time.month;
+  recvBuf[2] = time.year;  
+  recvBuf[3] = time.weekday;  
+  sendBlock(recvBuf, 4);    
+}
+
+void loop() {   
+  cmd = receiveByte(); 
+  switch(cmd) {
+    case CMD_SET_TIME:
+      onSetTime();      
+      break;
+    case CMD_GET_DATE_TIME_AS_STRING:
+      onGetDateTimeAsString();
+      break;
+    case CMD_SET_DATE:
+      onSetDate();
+      break;  
+    case CMD_GET_TIME:
+      onGetTime();
+      break;  
+    case CMD_GET_DATE:
+      onGetDate();
+      break;    
+    default:
+      //unknown command  
+      break;
+  }  
+  
+}
+
+byte receiveByte() {
+  byte b;
+  receiveComplete = false;
+  receiveBlock(&b, 1, onReceive);
+  while(!receiveComplete);
+  return b;
 }
 
 void sendByte(byte a) {
@@ -113,6 +172,31 @@ void sendString(char* p) {
   } 
 }
 
+void sendBlock(byte* p, int size) {
+  do {
+    sendByte(*p);
+    p++;
+    size--;
+  } while (size != 0); 
+}
+
+void receiveBlock(void* buffer, int size, CallbackFunc callback) {
+   isrInit();
+   isrHandlerStruct.pBuffer = (byte*) buffer;
+   isrHandlerStruct.bufferSize = size;   
+   isrHandlerStruct.callback = callback;
+   isrHandlerStruct.isrState = ISR_STATE_BUSY;
+}
+
+void receiveString(void* buffer, int size, CallbackFunc callback) {
+   isrInit();
+   isrHandlerStruct.pBuffer = (byte*) buffer;
+   isrHandlerStruct.bufferSize = size;   
+   isrHandlerStruct.callback = callback;
+   isrHandlerStruct.mode = ISR_MODE_RECEIVE_STRING;
+   isrHandlerStruct.isrState = ISR_STATE_BUSY;  
+}
+
 void isr() {
   if (isrHandlerStruct.isrState != ISR_STATE_BUSY) return;
   bool shouldStop = false;
@@ -126,7 +210,7 @@ void isr() {
       isrHandlerStruct.data |= ((~PIND) & 0xf0);      
       isrHandlerStruct.dataState++;
       isrHandlerStruct.pBuffer[isrHandlerStruct.currentPosition++] = isrHandlerStruct.data;
-      
+
       if (isrHandlerStruct.mode == ISR_MODE_RECEIVE_STRING) {
         if (isrHandlerStruct.data == 0) {
           shouldStop = true;

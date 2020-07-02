@@ -1,0 +1,107 @@
+.extern sendCommand, delay, sendString, recvString, sendBlock, recvBlock, sendByte, recvByte
+
+
+PORT = 177714; 		Extension port address
+
+; Uses r0, r1, r2, r3, r4
+; r0 - command code
+; r3 - buffer address
+; r4 - buffer size
+sendCommand:
+	call sendByte
+	call sendBlock
+	call recvByte
+	rts pc
+
+; uses r1
+delay:
+	mov #500, r1 
+1:	
+	dec r1
+	bne 1
+	rts pc
+
+;receive string
+; Uses r0, r1, r2, r3
+; r3 - buffer address
+sendString:
+	movb (r3), r0
+	call sendByte		
+	bitb #0xff, (r3)	
+	beq 1
+	inc r3
+	br sendString
+1:	
+	rts pc
+
+;receive string
+; Uses r0, r1, r2, r3
+; r3 - buffer address
+recvString:
+	call recvByte	
+	movb r0, (r3)+	
+	bitb #0xff, r0	
+	bne recvString
+	rts pc
+
+;receive block
+; Uses r0, r1, r2, r3, r4
+; r3 - buffer address, r4 - buffer size
+sendBlock:
+	movb (r3)+, r0
+	call sendByte	
+	dec r4
+	bne sendBlock
+	rts pc
+
+;receive block
+; Uses r0, r1, r2, r3, r4
+; r3 - buffer address, r4 - buffer size
+recvBlock:
+	call recvByte	
+	movb r0, (r3)+
+	dec r4
+	bne recvBlock
+	rts pc
+
+; uses registers R0, R1, R2
+; arg in R0
+sendByte:
+	mov #PORT, r2
+	mov r0, r1
+	bic #0xfff0, r1
+	bis #0x10, r1
+	mov r1, (r2)
+
+	mov r0, r1
+	asr r1
+	asr r1    
+	asr r1
+	asr r1
+	bic #0xfff0, r1
+	mov r1, (r2)
+	rts pc
+
+; uses registers R0, R1, R2
+; result in R0
+recvByte:
+	mov #PORT, r2
+1:
+	bit #0x10, (r2)
+	beq 1
+	mov (r2), r0	
+	bic #0xfff0, r0
+2:	
+	bit #0x10, (r2)
+	bne 2
+	mov (r2), r1
+	asl r1
+	asl r1    
+	asl r1
+	asl r1
+	bic #0xff0f, r1
+	bis r1, r0
+	com r0
+	bic #0xff00, r0
+	rts pc
+

@@ -1,0 +1,101 @@
+.extern getDate, getTime, setDate, setTime, getDateTimeAsString
+
+.include "protocol.mac"
+
+CMD_SET_TIME = 1
+CMD_SET_DATE = 2
+CMD_GET_TIME = 3
+CMD_GET_DATE = 4
+CMD_GET_DATE_TIME_AS_STRING = 5
+
+;uses r0, r1, r2, r3, r4
+; return 
+; r0 - day
+; r1 - month
+; r2 - year
+; r3 - day of week
+getDate:
+	mov #CMD_GET_DATE, r0
+	call sendByte
+	mov #rtcBuf, r3
+	mov #4, r4
+	call recvBlock
+	call delay
+	mov #rtcBuf, r4
+	movb (r4)+, r0
+	movb (r4)+, r1
+	movb (r4)+, r2
+	movb (r4)+, r3
+	rts pc
+
+;uses r0, r1, r2, r3, r4
+; return 
+; r0 - hours
+; r1 - minutes
+; r2 - seconds
+getTime:
+	mov #CMD_GET_TIME, r0
+	call sendByte
+	mov #rtcBuf, r3
+	mov #3, r4
+	call recvBlock
+	call delay
+	mov #rtcBuf, r3
+	movb (r3)+, r0
+	movb (r3)+, r1
+	movb (r3)+, r2
+	rts pc
+
+; r0 - format string
+; r1 - return buffer
+; Uses r0, r1, r2, r3, r4
+getDateTimeAsString:
+	mov r0, r3
+	mov r1, r4
+	mov #CMD_GET_DATE_TIME_AS_STRING, r0
+	call sendByte
+	call sendString
+	mov r4, r3
+	call recvString
+	call delay
+	rts pc
+
+;set time
+; r0 - hours
+; r1 - minutes
+; r2 - seconds
+; Uses r0, r1, r2, r3, r4
+setTime:
+	mov #rtcBuf, r3	
+	movb r0, (r3)+
+	movb r1, (r3)+
+	movb r2, (r3)+
+	mov #rtcBuf, r3
+	mov #3, r4
+	mov #CMD_SET_TIME, r0
+	call sendCommand
+	call delay	
+	rts pc
+
+;set date
+; r0 - day
+; r1 - month
+; r2 - year
+; r3 - day of week
+; Uses r0, r1, r2, r3, r4
+setDate:
+	mov #rtcBuf, r4	
+	movb r0, (r4)+
+	movb r1, (r4)+
+	movb r2, (r4)+
+	movb r3, (r4)+
+	mov #rtcBuf, r3
+	mov #4, r4
+	movb #CMD_SET_DATE, r0
+	call sendCommand
+	mov #500, r0
+	call delay	
+	rts pc
+
+rtcBuf:
+.BLKB 4
